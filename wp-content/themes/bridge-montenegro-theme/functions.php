@@ -32,7 +32,7 @@ add_action('pre_get_posts', 'bridge_adjast_query');
 
 // Получение Google API key
 function bridge_map_key($api) {
-$api['key'] = 'AIzaSyCFJUtQIV89Wq1V8g004V-4eHsFk90-2uY';
+$api['key'] = '***';
 return $api;
 }
 add_filter('acf/fields/google_map/api', 'bridge_map_key');
