@@ -1,7 +1,7 @@
 <?php
 /*
     Plugin Name: Pokar Word Filter Plugin
-    Description: Replaces a list of words    .
+    Description: Определяем плохие слова, которые хотим заменить в постах, определяем на какие знаки поменяем эти слова и производим замену
     Version: 1.0
     Author: Petr Pokar
     Author URI: https://github.com/PokarPetr/Application-Data-Analysis
@@ -15,27 +15,9 @@ class PokarWordFilterPlugin {
         add_action( 'admin_init', array($this, 'our_settings'));
         if (get_option('plugin_words_to_filter')) add_filter('the_content', array($this, 'filter_logic'));
 
-    }
-    // Формируем поля для страницы Options. Очень заморочено.
-    function our_settings() {
-        add_settings_section( 'replacement-text-section', null, null, 'word-filter-options');
-        register_setting( 'replacement-fields', 'replcementText');
-        add_settings_field( 'replacement-text', 'Filtered Text', array($this, 'replacement_field_HTML'),'word-filter-options', 'replacement-text-section');
-    }
-
-    function replacement_field_HTML() { ?>
-        <input type="text" name="replcementText" value="<?php echo esc_attr(get_option('replcementText', '****')); ?> ">
-        <p class="description">Leave <strong>blank</strong> to simply remove the filtered words.</p>
-    <?php }
-
-    // Реализуем логику поиска по контенту
-    function filter_logic($content) {
-        $bad_words = explode(',' , get_option('plugin_words_to_filter'));
-        $bad_words_trimmed = array_map('trim', $bad_words);
-        return str_ireplace($bad_words_trimmed, esc_html(get_option('replcementText', '****')), $content);
-    }
-
-    /* Инициализируем наше меню
+    } 
+   
+    /*  Инициализируем наше меню
         add_menu_page('имя в титуле'(doc title), 'имя в side dashbord-menu', 'кто может видеть в меню'
         'slag', 'функция которая ответственно за HTML', 'icon in menu'
         'где меню стоит в admin panel')
@@ -52,24 +34,17 @@ class PokarWordFilterPlugin {
         add_action("load-{$main_page_hook}", array($this, 'main_page_assets'));
         add_action("load-{$options_page_hook}", array($this, 'main_page_assets'));
     }
-    // Подключаем файл со стилями
+
+    //  Подключаем файл со стилями
     function main_page_assets() {
         wp_enqueue_style('filter_admin_css', plugin_dir_url(__FILE__) . 'styles.css');
     }
-    // Проверка разрешений на отправку данных в базу данных. Используем проверку по nonce и возможносей пользователя. Также безопасно сохраняем данные в базу.
-    function handle_form() {
-        if(wp_verify_nonce( $_POST['our_nonce'], 'save_filter_words' ) AND current_user_can( 'manage_options')) {
-            update_option( 'plugin_words_to_filter', sanitize_text_field( $_POST['plugin_words_to_filter'])); ?>
-                <div class="updated">
-                <p>Your filtered words were saved.</p>
-                </div>
-        <?php } else { ?>
-                <div class="error">
-                    <p>Sorry, you do not have permission to perform that action.</p>
-                </div>
-        <?php }
-    }
-    // Форма на странице меню. Ввод слов в textarea.В input type="hidden" создаем nonce. Остальное оформление.
+
+    /*  Форма на странице меню. Пишем свой HTML
+        (ниже при создании Options будем использовать функции WordPress).
+        Ввод слов в textarea.В input type="hidden" создаем nonce. 
+        Остальное оформление.
+    */
     function word_filter_page() { ?>
         <div class="wrap">
             <h1 class="_font-family" >Word Filter</h1>
@@ -86,7 +61,16 @@ class PokarWordFilterPlugin {
         </div>
     <?php }
 
-    //Формируем страницу Options.
+    //  Формируем поля для страницы Options. 
+    function our_settings() {
+        add_settings_section( 'replacement-text-section', null, null, 'word-filter-options');
+        register_setting( 'replacement-fields', 'replcementText');
+        add_settings_field( 'replacement-text', 'Filtered Text', array($this, 'replacement_field_HTML'),'word-filter-options', 'replacement-text-section');
+    }
+
+    /*  Формируем страницу Options. 
+        Вместо собственного HTML используем функции Wordpress 
+    */
     function options_subpage() { ?>
         <div class="wrap">
             <h1 class="_font-family">World Filter Options</h1>
@@ -100,6 +84,42 @@ class PokarWordFilterPlugin {
             </form>
         </div>
     <?php }
+
+    /*  Вводим знаки для замены слов(или оставляем пустую строку) 
+        и сохраняем в их в базе данных 
+    */
+    function replacement_field_HTML() { ?>
+        <input type="text" name="replcementText" value="<?php echo esc_attr(get_option('replcementText', '****')); ?> ">
+        <p class="description">Leave <strong>blank</strong> to simply remove the filtered words.</p>
+    <?php }
+
+    /*  Проверка разрешений на отправку данных в базу данных. 
+        Используем проверку по nonce и возможносей пользователя. 
+        Также безопасно сохраняем данные в базу.
+    */
+    function handle_form() {
+        if(wp_verify_nonce( $_POST['our_nonce'], 'save_filter_words' ) AND current_user_can( 'manage_options')) {
+            update_option( 'plugin_words_to_filter', sanitize_text_field( $_POST['plugin_words_to_filter'])); ?>
+                <div class="updated">
+                <p>Your filtered words were saved.</p>
+                </div>
+        <?php } else { ?>
+                <div class="error">
+                    <p>Sorry, you do not have permission to perform that action.</p>
+                </div>
+        <?php }
+    }
+
+     /*  Реализуем логику поиска по контенту. 
+        С помощью get_option получаем из базы данных список плохих слов 
+        и набор знаков на которые эти слова меняем. 
+        str_ireplace заменяет слова на символы в $content
+    */
+    function filter_logic($content) {
+        $bad_words = explode(',' , get_option('plugin_words_to_filter'));
+        $bad_words_trimmed = array_map('trim', $bad_words);
+        return str_ireplace($bad_words_trimmed, esc_html(get_option('replcementText', '****')), $content);
+    }     
 }
 
 $pokar_word_filter_plugin = new PokarWordFilterPlugin();
